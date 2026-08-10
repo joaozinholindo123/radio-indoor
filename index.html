@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sistema de Avisos - Rádio Venda de Roupas</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: #0f172a;
+      color: #f8fafc;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      padding: 20px;
+    }
+    .card {
+      background-color: #1e293b;
+      padding: 30px;
+      border-radius: 12px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+      width: 100%;
+      max-width: 550px;
+      border: 1px solid #334155;
+    }
+    h1 {
+      font-size: 1.5rem;
+      margin-bottom: 20px;
+      color: #38bdf8;
+      text-align: center;
+    }
+    .form-group {
+      margin-bottom: 15px;
+    }
+    label {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 0.85rem;
+      color: #94a3b8;
+    }
+    input, select, textarea {
+      width: 100%;
+      padding: 10px;
+      border-radius: 6px;
+      border: 1px solid #475569;
+      background-color: #0f172a;
+      color: #fff;
+      font-size: 0.95rem;
+      outline: none;
+    }
+    textarea {
+      resize: vertical;
+      height: 90px;
+    }
+    input:focus, select:focus, textarea:focus {
+      border-color: #38bdf8;
+    }
+    .btn-group {
+      display: flex;
+      gap: 10px;
+      margin-top: 15px;
+    }
+    button {
+      padding: 12px 15px;
+      border: none;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      font-weight: bold;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.1s;
+    }
+    button:active {
+      transform: scale(0.98);
+    }
+    .btn-primary { background-color: #0284c7; color: white; flex: 1; }
+    .btn-primary:hover { background-color: #0369a1; }
+    .btn-secondary { background-color: #ef4444; color: white; }
+    .btn-secondary:hover { background-color: #dc2626; }
+    .btn-copy { background-color: #475569; color: white; }
+    .btn-copy:hover { background-color: #334155; }
+    
+    .status {
+      font-size: 0.8rem;
+      margin-top: 5px;
+    }
+    .hint {
+      font-size: 0.75rem;
+      color: #64748b;
+      margin-top: 4px;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="card">
+    <h1>📢 Rádio Indoor - Chamada de Veículo</h1>
+
+    <!-- Configuração de Voz -->
+    <div class="form-group">
+      <label for="vozes">Voz do Sistema:</label>
+      <select id="vozes"></select>
+      <div id="statusVoz" class="status"></div>
+    </div>
+
+    <!-- Preenchimento da Placa -->
+    <div class="form-group">
+      <label for="placa">Placa do Veículo (substitui a tag {PLACA}):</label>
+      <input type="text" id="placa" placeholder="Ex: ABC-1234" maxlength="8" style="text-transform: uppercase;">
+    </div>
+
+    <!-- Texto do Aviso -->
+    <div class="form-group">
+      <label for="textoAviso">Texto do Aviso:</label>
+      <textarea id="textoAviso">Atenção. Solicita-se ao motorista do veículo de placa: {PLACA}, comparecer ao seu veículo. Repetindo. Motorista do veículo com placa: {PLACA}, por favor, comparecer ao seu veículo.</textarea>
+      <div class="hint">Dica: Use <b>{PLACA}</b> no texto onde deseja que a placa seja soletrada. Cole aqui seus modelos salvos do Bloco de Notas.</div>
+    </div>
+
+    <div class="btn-group">
+      <button class="btn-primary" onclick="anunciar()">Anunciar</button>
+      <button class="btn-copy" onclick="copiarParaBlocoDeNotas()">Copiar Texto</button>
+      <button class="btn-secondary" onclick="parar()">Parar</button>
+    </div>
+  </div>
+
+  <script>
+    const synth = window.speechSynthesis;
+    const selectVozes = document.getElementById('vozes');
+    const statusVoz = document.getElementById('statusVoz');
+    let vozesDisponiveis = [];
+
+    // Carrega e detecta a voz "Microsoft Maria"
+    function carregarVozes() {
+      vozesDisponiveis = synth.getVoices();
+      selectVozes.innerHTML = '';
+      let vozMariaEncontrada = false;
+
+      vozesDisponiveis.forEach((voz, index) => {
+        if (voz.lang.includes('pt')) {
+          const option = document.createElement('option');
+          option.value = index;
+          option.textContent = `${voz.name} (${voz.lang})`;
+
+          if (voz.name.includes('Maria') || voz.name.includes('Microsoft Maria')) {
+            option.selected = true;
+            vozMariaEncontrada = true;
+          }
+          selectVozes.appendChild(option);
+        }
+      });
+
+      if (vozMariaEncontrada) {
+        statusVoz.textContent = "✅ Voz 'Microsoft Maria' pronta.";
+        statusVoz.style.color = "#4ade80";
+      } else {
+        statusVoz.textContent = "⚠️ Voz 'Maria' não encontrada. Selecionada outra voz PT-BR.";
+        statusVoz.style.color = "#facc15";
+      }
+    }
+
+    if (speechSynthesis.onvoiceschanged !== undefined) {
+      speechSynthesis.onvoiceschanged = carregarVozes;
+    }
+    carregarVozes();
+
+    // Gerador de Som "Ding-Dong" via Web Audio API
+    function tocarDingDong() {
+      return new Promise((resolve) => {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        const audioCtx = new AudioContext();
+
+        function criarNota(frequencia, tempoInicio, duracao) {
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(frequencia, audioCtx.currentTime + tempoInicio);
+
+          // Efeito de atenuação suave do som (envelope)
+          gain.gain.setValueAtTime(0, audioCtx.currentTime + tempoInicio);
+          gain.gain.linearRampToValueAtTime(0.3, audioCtx.currentTime + tempoInicio + 0.05);
+          gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + tempoInicio + duracao);
+
+          osc.connect(gain);
+          gain.connect(audioCtx.destination);
+
+          osc.start(audioCtx.currentTime + tempoInicio);
+          osc.stop(audioCtx.currentTime + tempoInicio + duracao);
+        }
+
+        // "Ding" (Nota Sol5 - 783.99 Hz)
+        criarNota(783.99, 0, 0.8);
+        
+        // "Dong" (Nota Do5 - 523.25 Hz)
+        criarNota(523.25, 0.4, 1.2);
+
+        // Aguarda a finalização das notas para liberar a fala da Maria
+        setTimeout(() => {
+          audioCtx.close();
+          resolve();
+        }, 1500);
+      });
+    }
+
+    // Formata a placa adicionando espaços entre letras/números para leitura pausada
+    function formatarPlacaParaVoz(placa) {
+      return placa.toUpperCase().trim().split('').join(' ');
+    }
+
+    async function anunciar() {
+      if (synth.speaking) synth.cancel();
+
+      let textoBase = document.getElementById('textoAviso').value;
+      const inputPlaca = document.getElementById('placa').value;
+
+      if (textoBase.includes('{PLACA}')) {
+        if (!inputPlaca) {
+          alert("Por favor, preencha o campo 'Placa do Veículo'.");
+          return;
+        }
+        const placaFormatada = formatarPlacaParaVoz(inputPlaca);
+        textoBase = textoBase.replace(/{PLACA}/g, placaFormatada);
+      }
+
+      // Toca o vinco sonoro (Ding-Dong) antes de falar
+      await tocarDingDong();
+
+      const utterance = new SpeechSynthesisUtterance(textoBase);
+      if (selectVozes.value !== "") {
+        utterance.voice = vozesDisponiveis[selectVozes.value];
+      }
+
+      utterance.rate = 0.9;
+      utterance.pitch = 1.0;
+      synth.speak(utterance);
+    }
+
+    function parar() {
+      if (synth.speaking) synth.cancel();
+    }
+
+    function copiarParaBlocoDeNotas() {
+      const texto = document.getElementById('textoAviso').value;
+      navigator.clipboard.writeText(texto).then(() => {
+        alert("Texto copiado para a área de transferência! Pode colar no seu Bloco de Notas.");
+      });
+    }
+  </script>
+</body>
+</html>
